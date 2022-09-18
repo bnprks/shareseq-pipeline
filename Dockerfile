@@ -38,3 +38,5 @@ RUN install.r \
         rhdf5 \
         DropletUtils \
     ;
+
+RUN echo 'export PATH=/usr/bin:$PATH' >> ~/.bashrc
