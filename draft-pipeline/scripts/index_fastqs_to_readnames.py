@@ -11,7 +11,8 @@
 
 import argparse
 import collections
-import gzip
+import os
+import subprocess
 
 from typing import *
 from typing.io import *
@@ -26,18 +27,40 @@ def main():
     parser.add_argument("--R2_out", type=str, help="R2 output")
     args = parser.parse_args()
 
-    R1_out = gzip.open(args.R1_out, "wb")
-    R2_out = gzip.open(args.R2_out, "wb")
+    R1_out = write_gzip(args.R1_out, level=4)
+    R2_out = write_gzip(args.R2_out, level=4)
 
     inputs = zip(read_fastq(args.R1), read_fastq(args.R2), read_fastq(args.I1), read_fastq(args.I2))
+    lines = 0
     for r1, r2, i1, i2 in inputs:
+        lines += 1
+        if lines > 5_000_000:
+            break
         write_fastq(R1_out, r1, b"1:N:0:", i1.seq[:-1], i2.seq[:-1])
         write_fastq(R2_out, r2, b"2:N:0:", i1.seq[:-1], i2.seq[:-1])
+
+
+def read_gzip(filename: str) -> BinaryIO:
+    """Read a file, using an external process to decompress gzip if needed"""
+    if os.path.isfile(filename) and not filename.endswith(".gz"):
+        return open(filename, 'rb')
+    else:
+        ps = subprocess.Popen(('gzip', '-d', '-c', filename), stdout=subprocess.PIPE)
+        return ps.stdout
+
+
+def write_gzip(filename: str, level: int = 4) -> BinaryIO:
+    """Write a file, using an external process to compress gzip if needed"""
+    if filename[-3:] == ".gz":
+        ps = subprocess.Popen(('gzip', '-c', f'-{level}'), stdout=open(filename, 'wb'), stdin=subprocess.PIPE)
+        return ps.stdin
+    else:
+        return open(filename, 'wb')
 
 Read = collections.namedtuple("Read", ["name", "seq", "qual"])
 def read_fastq(file: str) -> Iterator[Read]:
     """Yield tuples of the read from a fastq file iterator"""
-    file_iter = gzip.open(file, "rb")
+    file_iter = read_gzip(file)
     while True:
         name = next(file_iter, None)
         if name is None:

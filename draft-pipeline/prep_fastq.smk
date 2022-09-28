@@ -103,6 +103,7 @@ rule bcl2fastq_index_to_read_names:
         I1 = "bcl2fastq/raw/{sequencing_path}_I1.fastq.gz",
         I2 = "bcl2fastq/raw/{sequencing_path}_I2.fastq.gz",
         script = srcdir("scripts/index_fastqs_to_readnames.py")
+    threads: 3
     shell: "python {params.script} "
             " --R1 {params.R1} --R2 {params.R2} --I1 {params.I1} --I2 {params.I2} "
             " --R1_out {output.R1} --R2_out {output.R2}"
