@@ -40,9 +40,6 @@ def main():
     parser.add_argument("--R1_RNA", required=True, type=str, help="Fastq R1 RNA output")
     parser.add_argument("--R2_RNA", required=True, type=str, help="Fastq R2 RNA output")
 
-    parser.add_argument("--ATAC_I2", required=True, type=str, nargs='+', help="I2 barcode sequences for ATAC libraries")
-    parser.add_argument("--RNA_I2", required=True, type=str, nargs='+', help="I2 barcode sequences for RNA libraries")
-
     parser.add_argument("--BC1", required=True, type=str, help="TSV of BC1 sequences")
     parser.add_argument("--BC2", required=True, type=str, help="TSV of BC2 sequences")
     parser.add_argument("--BC3", required=True, type=str, help="TSV of BC3 sequences")
@@ -147,7 +144,7 @@ def read_fastq(file: str) -> Iterator[Read]:
 def write_fastq(file: BinaryIO, read: Read, barcodes: List[bytes]):
     # Write name with barcode appended
     file.write(read.name[:read.name.find(b" ")])
-    file.write(b" ")
+    file.write(b" CB:Z:")
     for b in barcodes[:-1]:
         file.write(b)
         file.write(b"_")
@@ -159,11 +156,6 @@ def write_fastq(file: BinaryIO, read: Read, barcodes: List[bytes]):
     file.write(read.qual)
 
 
-complement = bytes.maketrans(b"ATGC", b"TACG")
-def reverse_complement(seq):
-    return seq.translate(complement)[::-1]
-
-
 def read_bc(tsv_path: str) -> Dict[bytes, bytes]:
     """Return dictionary from sequence -> label for barcodes in a tsv format"""
     lines = open(tsv_path, "rb").readlines()
@@ -171,10 +163,11 @@ def read_bc(tsv_path: str) -> Dict[bytes, bytes]:
     seqs = {}
     for l in lines[1:]:
         name, seq = l.strip().split(b"\t")
-        seq = reverse_complement(seq.upper())
+        seq = seq.upper()
         seqs[seq] = name
     assert len(set(len(seq) for seq in seqs.keys())) == 1
     return seqs
+
 
 def single_mismatches(seq: bytes) -> Iterator[bytes]:
     """Iterate through 1bp mismatches of a sequence"""
@@ -182,6 +175,7 @@ def single_mismatches(seq: bytes) -> Iterator[bytes]:
         if base == seq[idx:idx+1]:
             continue
         yield seq[:idx] + base + seq[idx+1:]
+
 
 def add_mismatches(seqs: Dict[bytes, bytes]) -> Dict[bytes, Tuple[bytes, int]]:
     """
@@ -201,6 +195,7 @@ def add_mismatches(seqs: Dict[bytes, bytes]) -> Dict[bytes, Tuple[bytes, int]]:
                 output[mutant] = (name, 1)
     return {k:v for k,v in output.items() if v is not None}
 
+
 def format_stats(stats: Dict[Tuple[bytes, int], int]) -> Dict[str, Dict[str, int]]:
     """Input: stats dictionary with keys (name, mismatches) 
     Output: Dictionary of "exact_match" and "1bp_mismatch" counts, 
@@ -212,6 +207,7 @@ def format_stats(stats: Dict[Tuple[bytes, int], int]) -> Dict[str, Dict[str, int
         "exact_match": exact_matches,
         "1bp_mismatch": mismatches,
     }
+
 
 if __name__ == "__main__":
     main()

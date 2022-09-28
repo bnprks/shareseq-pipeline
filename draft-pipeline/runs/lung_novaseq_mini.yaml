@@ -1,0 +1,13 @@
+output_dir: "/scratch/users/bparks/shareseq/lung_novaseq_mini"
+
+sequencing:
+  220920: 
+    type: fastq
+    R1: /scratch/users/bparks/lung_test_dataset/Undetermined_S0_R1_001.fastq.gz
+    R2: /scratch/users/bparks/lung_test_dataset/Undetermined_S0_R2_001.fastq.gz
+
+chunk_size: 1_000_000
+genome:
+  bowtie2: /oak/stanford/groups/wjg/share/uPrep/genomes/hg38/indexes/bowtie2/hg38
+
+    

@@ -1,0 +1,13 @@
+workdir: "/scratch/users/bparks/shareseq/betty_miseq"
+
+output_dir: "/scratch/users/bparks/shareseq/betty_miseq"
+
+sequencing:
+  20220726: 
+    type: fastq
+    R1: /oak/stanford/groups/wjg/bliu/data/20220726_shareseq_rna_contam/fastq/raw/Undetermined_S0_R1_001.fastq.gz
+    R2: /oak/stanford/groups/wjg/bliu/data/20220726_shareseq_rna_contam/fastq/raw/Undetermined_S0_R2_001.fastq.gz
+
+chunk_size: 1_000_000
+genome:
+  bowtie2: /oak/stanford/groups/wjg/share/uPrep/genomes/hg38/indexes/bowtie2/hg38
