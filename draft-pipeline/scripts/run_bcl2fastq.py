@@ -35,11 +35,6 @@ def main():
             out.write(f"RNA_{sample_id},,,,bc,,,{I2},,\n")
 
     log = open(snakemake.log[0], "wb")
-    writing_threads = min(
-        len(sequencing_run["ATAC_I2"]) + len(sequencing_run["RNA_I2"]),
-        snakemake.threads // 2
-    )
-    processing_threads = snakemake.threads - writing_threads
 
     # Run bcl2fastq
     command = [
@@ -50,8 +45,7 @@ def main():
         "--create-fastq-for-index-reads",
         "--use-bases-mask", get_bases_mask(run_dir),
         "--output", out_dir,
-        "--processing-threads", str(processing_threads), 
-        "--writing-threads", str(writing_threads),
+        "--processing-threads", str(snakemake.threads), # Empirically, vast majority of the work is spent in processing threads, so we don't add threads for other purposes
         # "--tiles", "1_2154,2_2424,3_2304,4_1557" # Uncomment to use a subset of reads for testing
     ]
     print(" ".join(command))

@@ -31,11 +31,7 @@ def main():
     R2_out = write_gzip(args.R2_out, level=4)
 
     inputs = zip(read_fastq(args.R1), read_fastq(args.R2), read_fastq(args.I1), read_fastq(args.I2))
-    lines = 0
     for r1, r2, i1, i2 in inputs:
-        lines += 1
-        if lines > 5_000_000:
-            break
         write_fastq(R1_out, r1, b"1:N:0:", i1.seq[:-1], i2.seq[:-1])
         write_fastq(R2_out, r2, b"2:N:0:", i1.seq[:-1], i2.seq[:-1])
 
