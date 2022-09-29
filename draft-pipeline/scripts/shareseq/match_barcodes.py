@@ -30,15 +30,12 @@ from typing import *
 from typing.io import *
 
 def main():
-    parser = argparse.ArgumentParser(description="Split a fastq file into multiple fixed-length chunks")
+    parser = argparse.ArgumentParser(description="Match SHARE-seq barcodes")
     parser.add_argument("--R1_in", type=str, help="Fastq R1 input")
     parser.add_argument("--R2_in", type=str, help="Fastq R2 input")
 
-    parser.add_argument("--R1_ATAC", required=True, type=str, help="Fastq R1 ATAC output")
-    parser.add_argument("--R2_ATAC", required=True, type=str, help="Fastq R2 ATAC output")
-
-    parser.add_argument("--R1_RNA", required=True, type=str, help="Fastq R1 RNA output")
-    parser.add_argument("--R2_RNA", required=True, type=str, help="Fastq R2 RNA output")
+    parser.add_argument("--R1_out", required=True, type=str, help="Fastq R1 output")
+    parser.add_argument("--R2_out", required=True, type=str, help="Fastq R2 output")
 
     parser.add_argument("--BC1", required=True, type=str, help="TSV of BC1 sequences")
     parser.add_argument("--BC2", required=True, type=str, help="TSV of BC2 sequences")
@@ -52,15 +49,8 @@ def main():
 
     args = parser.parse_args()
     
-    # Prep the I2 index sequence lookup
-    i2_length = len(args.ATAC_I2[0])
-    assert all(len(bc) == i2_length for bc in args.ATAC_I2 + args.RNA_I2)
-
-    i2_atac_seqs = {bc.encode(): bc.encode() for bc in args.ATAC_I2}
-    i2_atac_seqs = add_mismatches(i2_atac_seqs)
-
-    i2_rna_seqs = {bc.encode(): bc.encode() for bc in args.RNA_I2}
-    i2_rna_seqs = add_mismatches(i2_rna_seqs)
+    # Maximum number of total mismatches (note that each barcode can only have up to 1 mismatch)
+    max_mismatches = 3
     
     # Prep the I1 index sequence lookups
     barcodes = []
@@ -73,16 +63,13 @@ def main():
         positions.append(vars(args)[f"BC{i}_pos"])
         bc_lengths.append(len(next(iter(seqs))))
 
-    # Prep stats dictionaries
+    # Prep stats counters
     bc_match_stats = [collections.defaultdict(int) for i in range(3)]
-    atac_match_stats = collections.defaultdict(int)
-    rna_match_stats = collections.defaultdict(int)
+    mismatch_counts = [0 for i in range(max_mismatches + 2)]
 
     # Prep the output files
-    ATAC_R1 = open(args.R1_ATAC, "wb")
-    ATAC_R2 = open(args.R2_ATAC, "wb")
-    RNA_R1 = open(args.R1_RNA, "wb")
-    RNA_R2 = open(args.R2_RNA, "wb")
+    R1_out = open(args.R1_out, "wb")
+    R2_out = open(args.R2_out, "wb")
 
     json_output = open(args.json_stats, "w")
 
@@ -90,41 +77,33 @@ def main():
     current_match = ["", "", ""]
     for r1, r2 in zip(read_fastq(args.R1_in), read_fastq(args.R2_in)):
         bc1_pos = r1.name.rfind(b":") + 1
-        bc2_pos = r1.name.rfind(b"+") + 1
         
         # For each of the 3 I1 barcodes:
         # Check if the barcode at that position matches
-        has_match = True
+        total_mismatches = 0
         for i in range(3):
             offset = bc1_pos + positions[i]
             bc = r1.name[offset : offset+bc_lengths[i]]
             if bc not in barcodes[i]:
-                has_match = False
+                total_mismatches = 4
             else:
                 name, mismatches = barcodes[i][bc]
+                total_mismatches += mismatches
                 bc_match_stats[i][(name, mismatches)] += 1
                 current_match[i] = name
         
-        # Check the I2 barcode and output
-        bc2 = r1.name[bc2_pos : bc2_pos+i2_length]
-        if bc2 in i2_atac_seqs:
-            atac_match_stats[i2_atac_seqs[bc2]] += 1
-            if has_match:
-                write_fastq(ATAC_R1, r1, current_match)
-                write_fastq(ATAC_R2, r2, current_match)
-
-        if bc2 in i2_rna_seqs:
-            rna_match_stats[i2_rna_seqs[bc2]] += 1
-            if has_match:
-                write_fastq(RNA_R1, r1, current_match)
-                write_fastq(RNA_R2, r2, current_match)
+        total_mismatches = min(total_mismatches, max_mismatches + 1)
+        mismatch_counts[total_mismatches] += 1
+        
+        if total_mismatches <= max_mismatches:
+            write_fastq(R1_out, r1, current_match)
+            write_fastq(R2_out, r2, current_match)
 
     # Output stats
     stats = {}
     for i in [1,2,3]:
         stats[f"BC{i}"] = format_stats(bc_match_stats[i-1])
-    stats["ATAC_BC"] = format_stats(atac_match_stats)
-    stats["RNA_BC"] = format_stats(rna_match_stats)
+    stats["total_mismatch_histogram"] = mismatch_counts
     json.dump(stats, json_output)
 
 

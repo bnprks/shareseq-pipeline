@@ -41,6 +41,8 @@ def read_gzip(filename: str) -> BinaryIO:
     if os.path.isfile(filename) and not filename.endswith(".gz"):
         return open(filename, 'rb')
     else:
+        if not os.path.isfile(filename):
+            raise RuntimeError(f"File does not exist: {filename}")
         ps = subprocess.Popen(('gzip', '-d', '-c', filename), stdout=subprocess.PIPE)
         return ps.stdout
 

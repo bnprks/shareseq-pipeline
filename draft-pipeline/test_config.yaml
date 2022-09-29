@@ -1,7 +1,0 @@
-# Config structure:
-samples:
-  miseq_test:
-      R1: /oak/stanford/groups/wjg/bliu/data/20220726_shareseq_rna_contam/fastq/raw/Undetermined_S0_R1_001.fastq.gz
-      R2: /oak/stanford/groups/wjg/bliu/data/20220726_shareseq_rna_contam/fastq/raw/Undetermined_S0_R2_001.fastq.gz
-      ATAC_I2: ["ACGATAAC", "GGCACGGA"]
-      RNA_I2:  ["ACGATAAC", "GGCACGGA"]
