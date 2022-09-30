@@ -84,9 +84,19 @@ def fastq_path(sequencing_path, read):
     """Take a sublibrary path and return the path to its R1 or R2 fastq"""
     assay_type, run_id = sequencing_path.split("/")[:2] 
     if config["sequencing"][run_id]["type"] == "bcl":
-        return f"bcl2fastq/{sequencing_path}_{read}.fastq.gz"
+        return f"bcl2fastq/{sequencing_path}_{read}.fastq.zst"
     elif config["sequencing"][run_id]["type"] == "fastq":
         return config["sequencing"][run_id][assay_type.upper() + "_" + read]
+    else:
+        assert False
+
+def fastq_decompress(sequencing_path):
+    """Take a sublibrary path and return the command to decompress it"""
+    assay_type, run_id = sequencing_path.split("/")[:2] 
+    if config["sequencing"][run_id]["type"] == "bcl":
+        return "zstd -dc"
+    elif config["sequencing"][run_id]["type"] == "fastq":
+        return "gzip -dc"
     else:
         assert False
 
@@ -100,18 +110,21 @@ def bcl2fastq_output(sequencing_path, read):
 rule bcl2fastq_index_to_read_names:
     input: lambda w: bcl2fastq_dependency(w.sequencing_path)
     output:
-        R1 = "bcl2fastq/{sequencing_path}_R1.fastq.gz",
-        R2 = "bcl2fastq/{sequencing_path}_R2.fastq.gz",
+        R1 = "bcl2fastq/{sequencing_path}_R1.fastq.zst",
+        R2 = "bcl2fastq/{sequencing_path}_R2.fastq.zst",
     params: 
         R1 = lambda w: bcl2fastq_output(w.sequencing_path, "R1"),
         R2 = lambda w: bcl2fastq_output(w.sequencing_path, "R2"),
         I1 = lambda w: bcl2fastq_output(w.sequencing_path, "I1"),
         I2 = lambda w: bcl2fastq_output(w.sequencing_path, "I2"),
-        script = srcdir("scripts/prep_fastq/fastq_index_to_readname.py")
+        script = srcdir("scripts/prep_fastq/fastq_index_to_readname")
+    resources:
+        runtime = 5 * 60, # Be generous on time in case of large fastqs
     threads: 3
-    shell: "python {params.script} "
-            " --R1 {params.R1} --R2 {params.R2} --I1 {params.I1} --I2 {params.I2} "
-            " --R1_out {output.R1} --R2_out {output.R2}"
+    log: "bcl2fastq/logs/{sequencing_path}/index_to_read_names.log"
+    shell: "{params.script} <(gzip -dc {params.R1}) <(gzip -dc {params.R2}) "
+           "  <(gzip -dc {params.I1}) <(gzip -dc {params.I2}) "
+           "  >(zstd --fast=1 -qo {output.R1}) >(zstd --fast=1 -qo {output.R2}) "
     
 #############################
 ### Count reads
@@ -120,6 +133,10 @@ rule bcl2fastq_index_to_read_names:
 rule count_reads:
     input: lambda w: fastq_path(w.sequencing_path, "R1")
     output: "{sequencing_path}/read_count.txt"
-    shell: "gunzip -c {input} | awk -c 'END{{print int(NR/4)}}' > {output}"
+    params: 
+        decompress = lambda w: fastq_decompress(w.sequencing_path)
+    resources:
+        runtime = 5 * 60, # Be generous on time in case of large fastqs
+    shell: "{params.decompress} {input} | awk -c 'END{{print int(NR/4)}}' > {output}"
 
-
+#split test.txt --numeric-suffixes=1 --lines=10 --additional-suffix=.txt.gz --filter='gzip > $FILE' test_out/

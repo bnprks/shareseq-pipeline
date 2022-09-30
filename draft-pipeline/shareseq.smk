@@ -61,9 +61,19 @@ def fastq_path(sequencing_path, read):
     """Take a sublibrary path and return the path to its R1 or R2 fastq"""
     assay_type, run_id = sequencing_path.split("/")[:2] 
     if config["sequencing"][run_id]["type"] == "bcl":
-        return f"bcl2fastq/{sequencing_path}_{read}.fastq.gz"
+        return f"bcl2fastq/{sequencing_path}_{read}.fastq.zst"
     elif config["sequencing"][run_id]["type"] == "fastq":
         return config["sequencing"][run_id][assay_type.upper() + "_" + read]
+    else:
+        assert False
+
+def fastq_decompress(sequencing_path):
+    """Take a sublibrary path and return the command to decompress it"""
+    assay_type, run_id = sequencing_path.split("/")[:2] 
+    if config["sequencing"][run_id]["type"] == "bcl":
+        return "zstd -dc"
+    elif config["sequencing"][run_id]["type"] == "fastq":
+        return "gzip -dc"
     else:
         assert False
 
@@ -75,9 +85,18 @@ rule split_fastqs:
     output:
         chunks = temp(directory("{sequencing_path}/split_fastqs/{read}"))
     params:
-        script = srcdir("scripts/shareseq/split_fastq.py")
+        decompress = lambda w: fastq_decompress(w.sequencing_path),
+        lines = chunk_size * 4,
+    resources:
+        runtime = 60 * 5, # Be generous on time in case of large fastqs
+    threads: 3
     log: '{sequencing_path}/split_fastqs/{read}.log'
-    shell: "python3 {params.script} {input.fastq} {output.chunks} --reads {chunk_size} 2> {log}"
+    shell: "mkdir {output.chunks} && "
+          " split <({params.decompress} {input.fastq}) "
+          " --numeric-suffixes=1 --lines {params.lines} "
+          " --additional-suffix=.fastq.zst "
+          " --filter='zstd --fast=1 -q -o $FILE' "
+          " {output.chunks}/ 2> {log}"
 
 # Perform barcode matching
 rule match_barcodes:
@@ -172,9 +191,11 @@ rule atac_convert_fragments:
            "-S {params.memory} --parallel={threads} > {output.fragments} "
 
 def get_chunks(sequencing_path):
+    """Generate chunk IDs for a sequencing path based on read count. Adds padding 0s as needed"""
     reads = int(open(f"{sequencing_path}/read_count.txt").read())
     chunk_count = (reads + chunk_size - 1) // chunk_size
-    return list(range(1, chunk_count+1))
+    str_len = max(2, len(str(chunk_count)))
+    return [f"{i:0{str_len}d}" for i in range(1, chunk_count+1)]
 
 rule atac_merge_chunks:
     input: lambda w: expand(rules.atac_convert_fragments.output, sequencing_path=w.sequencing_path, chunk=get_chunks(w.sequencing_path))
