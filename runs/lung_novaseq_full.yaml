@@ -1,0 +1,30 @@
+output_dir: "/scratch/users/bparks/shareseq/lung_novaseq_full"
+
+# chunk_size: 200_000
+chunk_size: 20_000_000
+
+genome:
+  bowtie2: /oak/stanford/groups/wjg/share/uPrep/genomes/hg38/indexes/bowtie2/hg38
+
+sequencing:
+  220920:
+    type: bcl
+    run_dir: /oak/stanford/groups/wjg/seqruns/220920_A00509_0608_AHNT5JDSX3
+    ATAC_I2:
+      SL2_b1_lung: CTCTCTAT
+      SL4_b1_lung: AGAGTAGA
+      SL7_b1_lung: AAGGAGTA
+      SL8_b1_lung: CTAAGCCT
+      SL9_b2_lung: TGGAAATC
+      SL13_b2_lung: TTTCTAGC
+      SL15_b2_lung: GTGTATCG
+      SL16_b2_lung: TCCATCAA
+    RNA_I2:
+      SL18_b1_lung: AGGTTGCC
+      SL20_b1_lung: CAGCAACG
+      SL23_b1_lung: GATTCCCA
+      SL24_b1_lung: CGGACTGC
+      SL25_b2_lung: AGCCGTTC
+      SL29_b2_lung: GACGTGGC
+      SL31_b2_lung: GCAGCCTC
+      SL32_b2_lung: TCCGAGTT
