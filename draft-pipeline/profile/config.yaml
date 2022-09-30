@@ -10,7 +10,7 @@ cluster:
     --job-name=smk-{rule}-{wildcards}
     --output=slurm-logs/{rule}/%j.out
     --parsable
-cluster-status: "status_sacct_robust.sh"
+cluster-status: "slurm_status.py"
 default-resources:
   - partition=wjg,sfgf,biochem
   - mem_mb=8000
