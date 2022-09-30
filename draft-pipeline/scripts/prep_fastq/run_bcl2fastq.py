@@ -81,7 +81,7 @@ def main():
         "--use-bases-mask", get_bases_mask(args.input),
         "--output", args.output,
         "--processing-threads", str(args.threads), # Empirically, vast majority of the work is spent in processing threads, so we don't add threads for other purposes
-        "--tiles", "1_2154,2_2424,3_2304,4_1557" # Uncomment to use a subset of reads for testing
+        # "--tiles", "1_2154,2_2424,3_2304,4_1557" # Uncomment to use a subset of reads for testing
     ]
     bcl2fastq = subprocess.run(command, stderr=log)
     log.close()

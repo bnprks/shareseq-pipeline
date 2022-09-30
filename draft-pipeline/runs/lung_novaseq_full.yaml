@@ -1,6 +1,6 @@
 output_dir: "/scratch/users/bparks/shareseq/lung_novaseq_full"
 
-#chunk_size: 200_000
+# chunk_size: 200_000
 chunk_size: 20_000_000
 
 genome:
